@@ -1,17 +1,19 @@
-version: '3'
+version: '3.2'
+
 services:
   nginx: 
     image: nginx:1.15-alpine
-    container_name: nginx-auth-handler
+    container_name: auth-handler
     volumes:
       - ./nginx-ldap-auth.conf:/etc/nginx/nginx.conf
+      - ./:/etc/nginx/logs
+
     ports:
-      - 80:80
-      - 443:443
+      - "8081:8081"
 
   daemon:
-    image: nginx-auth:dev
-    container_name: nginx-auth-daemon
+    build: daemon
+    container_name: ldap-handler
     environment:       
       - URL=${URL:?URL is required}
       - BASE=${BASE:?BASE is required}
@@ -20,5 +22,18 @@ services:
       - COOKIE=${COOKIE:?COOKIE is required}
       - FILTER=${FILTER:?FILTER is required}
       - REALM=${REALM:?REALM is required}
+      - CRYPTO_RANDOM_16=${RANDOM16:?RANDOM16 is required}
+
     ports:
-      - 8888:8888
+      - "8888:8888"
+
+  sample:
+    build: sample
+    container_name: sample-app
+    environment:       
+      - CRYPTO_RANDOM_16=${RANDOM16:?RANDOM16 is required}
+    ports:
+      - "9000:9000"
+
+
+ 

@@ -7,10 +7,18 @@
 
 import sys, os, signal, base64, ldap, Cookie, argparse
 from BaseHTTPServer import HTTPServer, BaseHTTPRequestHandler
+from cryptography.fernet import Fernet
+from cryptography.hazmat.backends import default_backend 
+from cryptography.hazmat.primitives import hashes 
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from cryptography.exceptions import InvalidKey
 
-#Listen = ('localhost', 8888)
-#Listen = "/tmp/auth.sock"    # Also uncomment lines in 'Requests are
-                              # processed with UNIX sockets' section below
+def derive_fernet_key():
+    password = os.getenv("CRYPTO_PASSWORD", "s77sg2j34kj")
+    salt = os.getenv("RANDOM16", "1234567890123456")
+    kdf = PBKDF2HMAC(algorithm=hashes.SHA256(),length=32,salt=salt,iterations=100000,backend=default_backend())  
+    key = kdf.derive(password)
+    return base64.urlsafe_b64encode(key)
 
 # -----------------------------------------------------------------------------
 # Different request processing models: select one
@@ -67,10 +75,15 @@ class AuthHandler(BaseHTTPRequestHandler):
         ctx['action'] = 'decoding credentials'
 
         try:
-            auth_decoded = base64.b64decode(auth_header[6:])
-            user, passwd = auth_decoded.split(':', 1)
+            cipher_suite = Fernet(derive_fernet_key())
 
-        except:
+            token = auth_header[6:]
+            self.log_message("fernet token: %s" % token)
+            plain_text = cipher_suite.decrypt(token)
+            user, passwd = plain_text.split(':', 1)
+
+        except InvalidKey as x:
+            self.log_message("boom: %s" % x)
             self.auth_failed(ctx)
             return True
 
@@ -109,6 +122,7 @@ class AuthHandler(BaseHTTPRequestHandler):
             msg += ', login="%s"' % ctx['user']
 
         self.log_error(msg)
+
         self.send_response(401)
         self.send_header('WWW-Authenticate', 'Basic realm="' + ctx['realm'] + '"')
         self.send_header('Cache-Control', 'no-cache')
@@ -311,6 +325,9 @@ if __name__ == '__main__':
         'bindpasswd': ('X-Ldap-BindPass', args.bindpw),
         'cookiename': ('X-CookieName', args.cookie)
     }
+
+    for k,v in auth_params.items():
+        sys.stdout.write("params: %s: %s\n" % (k, v[1]) )
 
     LDAPAuthHandler.set_params(auth_params)
     server = AuthHTTPServer(Listen, LDAPAuthHandler)
