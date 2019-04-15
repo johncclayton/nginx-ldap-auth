@@ -20,6 +20,7 @@ import threading
 from SocketServer import ThreadingMixIn
 class AuthHTTPServer(ThreadingMixIn, HTTPServer):
     pass
+
 # -----------------------------------------------------------------------------
 # Requests are processed in separate process
 #from SocketServer import ForkingMixIn
@@ -34,14 +35,11 @@ class AuthHTTPServer(ThreadingMixIn, HTTPServer):
 # -----------------------------------------------------------------------------
 
 class AuthHandler(BaseHTTPRequestHandler):
-
     # Return True if request is processed and response sent, otherwise False
     # Set ctx['user'] and ctx['pass'] for authentication
     def do_GET(self):
-
         ctx = self.ctx
 
-        ctx['action'] = 'input parameters check'
         for k, v in self.get_params().items():
             ctx[k] = self.headers.get(v[0], v[1])
             if ctx[k] == None:
@@ -60,12 +58,10 @@ class AuthHandler(BaseHTTPRequestHandler):
             self.log_message("using username/password from authorization header")
 
         if auth_header is None or not auth_header.lower().startswith('basic '):
-
             self.send_response(401)
             self.send_header('WWW-Authenticate', 'Basic realm="' + ctx['realm'] + '"')
             self.send_header('Cache-Control', 'no-cache')
             self.end_headers()
-
             return True
 
         ctx['action'] = 'decoding credentials'
@@ -95,10 +91,8 @@ class AuthHandler(BaseHTTPRequestHandler):
         else:
             return None
 
-
     # Log the error and complete the request with appropriate status
     def auth_failed(self, ctx, errmsg = None):
-
         msg = 'Error while ' + ctx['action']
         if errmsg:
             msg += ': ' + errmsg
@@ -144,18 +138,7 @@ class AuthHandler(BaseHTTPRequestHandler):
 # Verify username/password against LDAP server
 class LDAPAuthHandler(AuthHandler):
     # Parameters to put into self.ctx from the HTTP header of auth request
-    params =  {
-             # parameter      header         default
-             'realm': ('X-Ldap-Realm', 'Restricted'),
-             'url': ('X-Ldap-URL', None),
-             'starttls': ('X-Ldap-Starttls', 'false'),
-             'disable_referrals': ('X-Ldap-DisableReferrals', 'false'),
-             'basedn': ('X-Ldap-BaseDN', None),
-             'template': ('X-Ldap-Template', '(cn=%(username)s)'),
-             'binddn': ('X-Ldap-BindDN', ''),
-             'bindpasswd': ('X-Ldap-BindPass', ''),
-             'cookiename': ('X-CookieName', '')
-        }
+    params =  {}
 
     @classmethod
     def set_params(cls, params):
@@ -193,7 +176,7 @@ class LDAPAuthHandler(AuthHandler):
                 return
 
             ctx['action'] = 'initializing LDAP connection'
-            ldap_obj = ldap.initialize(ctx['url']);
+            ldap_obj = ldap.initialize(ctx['url'])
 
             # Python-ldap module documentation advises to always
             # explicitely set the LDAP version to use after running
@@ -276,12 +259,14 @@ def exit_handler(signal, frame):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description="""Simple Nginx LDAP authentication helper.""")
+        
     # Group for listen options:
     group = parser.add_argument_group("Listen options")
     group.add_argument('--host',  metavar="hostname",
         default="localhost", help="host to bind (Default: localhost)")
     group.add_argument('-p', '--port', metavar="port", type=int,
         default=8888, help="port to bind (Default: 8888)")
+
     # ldap options:
     group = parser.add_argument_group(title="LDAP options")
     group.add_argument('-u', '--url', metavar="URL",
@@ -302,6 +287,7 @@ if __name__ == '__main__':
     group.add_argument('-f', '--filter', metavar='filter',
         default='(cn=%(username)s)',
         help="LDAP filter (Default: cn=%%(username)s)")
+
     # http options:
     group = parser.add_argument_group(title="HTTP options")
     group.add_argument('-R', '--realm', metavar='"Restricted Area"',
@@ -310,24 +296,29 @@ if __name__ == '__main__':
         default="", help="HTTP cookie name to set in (Default: unset)")
 
     args = parser.parse_args()
+
     global Listen
     Listen = (args.host, args.port)
+    
     auth_params = {
-             'realm': ('X-Ldap-Realm', args.realm),
-             'url': ('X-Ldap-URL', args.url),
-             'starttls': ('X-Ldap-Starttls', args.starttls),
-             'disable_referrals': ('X-Ldap-DisableReferrals', args.disable_referrals),
-             'basedn': ('X-Ldap-BaseDN', args.basedn),
-             'template': ('X-Ldap-Template', args.filter),
-             'binddn': ('X-Ldap-BindDN', args.binddn),
-             'bindpasswd': ('X-Ldap-BindPass', args.bindpw),
-             'cookiename': ('X-CookieName', args.cookie)
+        'realm': ('X-Ldap-Realm', args.realm),
+        'url': ('X-Ldap-URL', args.url),
+        'starttls': ('X-Ldap-Starttls', args.starttls),
+        'disable_referrals': ('X-Ldap-DisableReferrals', args.disable_referrals),
+        'basedn': ('X-Ldap-BaseDN', args.basedn),
+        'template': ('X-Ldap-Template', args.filter),
+        'binddn': ('X-Ldap-BindDN', args.binddn),
+        'bindpasswd': ('X-Ldap-BindPass', args.bindpw),
+        'cookiename': ('X-CookieName', args.cookie)
     }
+
     LDAPAuthHandler.set_params(auth_params)
     server = AuthHTTPServer(Listen, LDAPAuthHandler)
+
     signal.signal(signal.SIGINT, exit_handler)
     signal.signal(signal.SIGTERM, exit_handler)
 
     sys.stdout.write("Start listening on %s:%d...\n" % Listen)
     sys.stdout.flush()
+    
     server.serve_forever()

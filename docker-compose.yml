@@ -1,0 +1,24 @@
+version: '3'
+services:
+  nginx: 
+    image: nginx:1.15-alpine
+    container_name: nginx-auth-handler
+    volumes:
+      - ./nginx-ldap-auth.conf:/etc/nginx/nginx.conf
+    ports:
+      - 80:80
+      - 443:443
+
+  daemon:
+    image: nginx-auth:dev
+    container_name: nginx-auth-daemon
+    environment:       
+      - URL=${URL:?URL is required}
+      - BASE=${BASE:?BASE is required}
+      - BIND_DN=${BIND_DN:?BIND_DN is required}
+      - BIND_PASS=${BIND_PASS:?BIND_PASS is required}
+      - COOKIE=${COOKIE:?COOKIE is required}
+      - FILTER=${FILTER:?FILTER is required}
+      - REALM=${REALM:?REALM is required}
+    ports:
+      - 8888:8888
