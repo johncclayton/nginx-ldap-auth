@@ -12,6 +12,4 @@ WORKDIR /code
 COPY entrypoint.sh /code
 COPY nginx-ldap-auth-daemon.py /code
 
-#CMD ["python", "-u", "/code/nginx-ldap-auth-daemon.py", "--host", "0.0.0.0", "--port", "8888"]
-
 CMD [ "/code/entrypoint.sh" ]

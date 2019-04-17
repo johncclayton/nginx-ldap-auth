@@ -10,8 +10,8 @@ services:
     ports:
       - "8081:8081"
 
-  daemon:
-    image: johncclayton/ldap-daemon:1.3.1
+  auth:
+    build: daemon
     environment:       
       - URL=${URL:?URL is required}
       - BASE=${BASE:?BASE is required}

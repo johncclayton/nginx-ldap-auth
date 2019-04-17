@@ -9,7 +9,8 @@
 # 1) accepts GET  requests on /login and responds with a login form
 # 2) accepts POST requests on /login, sets a cookie, and responds with redirect
 
-import sys, os, signal, base64, Cookie, cgi, urlparse
+import sys, os, signal, base64, Cookie, cgi
+from urlparse import urlparse, parse_qs
 from BaseHTTPServer import HTTPServer, BaseHTTPRequestHandler
 from cryptography.fernet import Fernet
 from cryptography.hazmat.backends import default_backend 
@@ -34,19 +35,48 @@ class AppHandler(BaseHTTPRequestHandler):
 
     def do_GET(self):
 
-        url = urlparse.urlparse(self.path)
+        url = urlparse(self.path)
+        query_components = parse_qs(url.query)
+
+        if url.path.startswith("/login/relay.html"):
+            return self.relay_page(query_components)
 
         if url.path.startswith("/login"):
             return self.auth_form()
 
         self.send_response(200)
         self.end_headers()
+
         self.wfile.write('Hello, world! Requested URL: ' + self.path + '\n')
+
+
+    def relay_page(self, qc):
+        self.log_message("relay query params: %s" % qc)
+
+        html="""
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+  <head>
+    <meta http-equiv=Content-Type content="text/html;charset=UTF-8">
+    <script src="https://d1813.dyndns.org:5001/webman/sso/synoSSO-1.0.0.js"></script>
+    <title>DSM Authenticator - Relay</title>
+  </head>
+  <body>
+    <h1>Syno SSO Relay</h1>
+    Access Token: TOKEN
+  </body>
+  </html>
+  """
+
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(html.replace("TOKEN", qc["access_token"]))
+
+        self.log_message("relay.html served")
 
 
     # send login form html
     def auth_form(self, target = None):
-
         # try to get target location from header
         if target == None:
             target = self.headers.get('X-Target')
@@ -93,7 +123,8 @@ class AppHandler(BaseHTTPRequestHandler):
    SYNOSSO.init({
       oauthserver_url: 'https://d1813.dyndns.org:5001',
       app_id: '5d125d33ff6e54f6675f8c3b6b6ffc61',
-      redirect_uri: 'https://test.d1813.dyndns.org/relay', //no idea what this is :)
+      redirect_uri: 'https://test.d1813.dyndns.org/login/relay.html',
+      ldap_baseDN: 'dc=d1813,dc=dyndns,dc=org',
       callback: authCallback
    });
 </script>
@@ -102,6 +133,7 @@ class AppHandler(BaseHTTPRequestHandler):
 
 <p id='button'></p>
 
+<!--
     <form action="/login" method="post">
       <table>
         <tr>
@@ -113,6 +145,7 @@ class AppHandler(BaseHTTPRequestHandler):
       </table>
         <input type="hidden" name="target" value="TARGET">
     </form>
+-->
 
   </body>
 </html>"""
