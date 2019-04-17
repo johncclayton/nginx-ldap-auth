@@ -12,8 +12,6 @@ services:
       - "8081:8081"
 
   daemon:
-    build: daemon
-    container_name: ldap-handler
     environment:       
       - URL=${URL:?URL is required}
       - BASE=${BASE:?BASE is required}
