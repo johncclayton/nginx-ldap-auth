@@ -38,6 +38,8 @@ class AppHandler(BaseHTTPRequestHandler):
         url = urlparse(self.path)
         query_components = parse_qs(url.query)
 
+        self.log_message("url: %s, query_params: %s" % (url, query_components))
+
         if url.path.startswith("/login/relay.html"):
             return self.relay_page(query_components)
 
@@ -77,6 +79,8 @@ class AppHandler(BaseHTTPRequestHandler):
 
     # send login form html
     def auth_form(self, target = None):
+        self.log_message("auth goodness is happening")
+
         # try to get target location from header
         if target == None:
             target = self.headers.get('X-Target')
