@@ -1,0 +1,49 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+  <head>
+    <meta http-equiv=Content-Type content="text/html;charset=UTF-8">
+    <script src="https://d1813.dyndns.org:5001/webman/sso/synoSSO-1.0.0.js"></script>
+    <title>DSM Authenticator</title>
+  </head>
+  <body>
+
+  <script>
+   function setButton (logged) {
+      if (logged) {
+         document.getElementById('button').innerHTML = '<button onclick="SYNOSSO.logout()">Logout</button>';
+      } else {
+         document.getElementById('button').innerHTML = '<button onclick="SYNOSSO.login()">Login</button>';
+      }
+   }
+
+   /** Callback for SSO.
+   * Called by init() and login()
+   * @param reponse the JSON returned by SSO. See Syno SSO Dev Guide.
+   */
+   function authCallback(reponse) {
+      console.log(JSON.stringify(reponse));
+      if (reponse.status == 'login') {
+         console.log('logged');
+         setButton(true);
+      }
+      else {
+         console.log('not logged ' + reponse.status);
+         setButton(false);
+      }
+   }
+
+   SYNOSSO.init({
+      oauthserver_url: 'https://d1813.dyndns.org:5001',
+      app_id: '5d125d33ff6e54f6675f8c3b6b6ffc61',
+      redirect_uri: 'https://test.d1813.dyndns.org/login/relay.html',
+      ldap_baseDN: 'dc=d1813,dc=dyndns,dc=org',
+      callback: authCallback
+   });
+</script>
+
+	<h1> Syno SSO test</h1>
+	<p id='button'></p>
+
+  </body>
+</html>
+

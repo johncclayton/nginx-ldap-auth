@@ -5,7 +5,9 @@ services:
     image: nginx:1.15-alpine
     volumes:
       - ./nginx-ldap-auth.conf:/etc/nginx/nginx.conf
+      - ./html:/usr/share/nginx/html
       - ./:/etc/nginx/logs
+    stop_signal: SIGQUIT
 
     ports:
       - "8081:8081"
@@ -22,6 +24,7 @@ services:
       - REALM=${REALM:?REALM is required}
       - CRYPTO_RANDOM_16=${RANDOM16:?RANDOM16 is required}
 
+    stop_signal: SIGKILL
     ports:
       - "8888:8888"
 
@@ -29,6 +32,7 @@ services:
     build: webapp
     environment:       
       - CRYPTO_RANDOM_16=${RANDOM16:?RANDOM16 is required}
+    stop_signal: SIGKILL
     ports:
       - "9000:9000"
 

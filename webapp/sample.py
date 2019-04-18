@@ -32,132 +32,10 @@ class AuthHTTPServer(ThreadingMixIn, HTTPServer):
     pass
 
 class AppHandler(BaseHTTPRequestHandler):
-
-    def do_GET(self):
-
-        url = urlparse(self.path)
-        query_components = parse_qs(url.query)
-
-        self.log_message("url: %s, query_params: %s" % (url, query_components))
-
-        if url.path.startswith("/login/relay.html"):
-            return self.relay_page(query_components)
-
-        if url.path.startswith("/login"):
-            return self.auth_form()
-
-        self.send_response(200)
-        self.end_headers()
-
-        self.wfile.write('Hello, world! Requested URL: ' + self.path + '\n')
-
-
-    def relay_page(self, qc):
-        self.log_message("relay query params: %s" % qc)
-
-        html="""
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
-<html>
-  <head>
-    <meta http-equiv=Content-Type content="text/html;charset=UTF-8">
-    <script src="https://d1813.dyndns.org:5001/webman/sso/synoSSO-1.0.0.js"></script>
-    <title>DSM Authenticator - Relay</title>
-  </head>
-  <body>
-    <h1>Syno SSO Relay</h1>
-    Access Token: TOKEN
-  </body>
-  </html>
-  """
-
-        self.send_response(200)
-        self.end_headers()
-        self.wfile.write(html.replace("TOKEN", qc["access_token"]))
-
-        self.log_message("relay.html served")
-
-
-    # send login form html
-    def auth_form(self, target = None):
-        self.log_message("auth goodness is happening")
-
-        # try to get target location from header
-        if target == None:
-            target = self.headers.get('X-Target')
-
-        # form cannot be generated if target is unknown
-        if target == None:
-            self.log_error('target url is not passed')
-            self.send_response(500)
-            return
-
-        html="""
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
-<html>
-  <head>
-    <meta http-equiv=Content-Type content="text/html;charset=UTF-8">
-    <script src="https://d1813.dyndns.org:5001/webman/sso/synoSSO-1.0.0.js"></script>
-    <title>DSM Authenticator</title>
-  </head>
-  <body>
-
-  <script>
-   function setButton (logged) {
-      if (logged) {
-         document.getElementById('button').innerHTML = '<button onclick="SYNOSSO.logout()">Logout</button>';
-      } else {
-         document.getElementById('button').innerHTML = '<button onclick="SYNOSSO.login()">Login</button>';
-      }
-   }
-   /** Callback for SSO.
-   * Called by init() and login()
-   * @param reponse the JSON returned by SSO. See Syno SSO Dev Guide.
-   */
-   function authCallback(reponse) {
-      console.log(JSON.stringify(reponse));
-      if (reponse.status == 'login') {
-         console.log('logged');
-         setButton(true);
-      }
-      else {
-         console.log('not logged ' + reponse.status);
-         setButton(false);
-      }
-   }
-   SYNOSSO.init({
-      oauthserver_url: 'https://d1813.dyndns.org:5001',
-      app_id: '5d125d33ff6e54f6675f8c3b6b6ffc61',
-      redirect_uri: 'https://test.d1813.dyndns.org/login/relay.html',
-      ldap_baseDN: 'dc=d1813,dc=dyndns,dc=org',
-      callback: authCallback
-   });
-</script>
-
-<h1> Syno SSO test</h1>
-
-<p id='button'></p>
-
-<!--
-    <form action="/login" method="post">
-      <table>
-        <tr>
-          <td>Username: <input type="text" name="username"/></td>
-        <tr>
-          <td>Password: <input type="password" name="password"/></td>
-        <tr>
-          <td><input type="submit" value="Login"></td>
-      </table>
-        <input type="hidden" name="target" value="TARGET">
-    </form>
--->
-
-  </body>
-</html>"""
-
-        self.send_response(200)
-        self.end_headers()
-        self.wfile.write(html.replace('TARGET', target))
-
+    def encode_cookie(self, cleartext):
+        cipher_suite = Fernet(derive_fernet_key())
+        enc_data = cipher_suite.encrypt(cleartext)
+        return enc_data
 
     # processes posted form and sets the cookie with login/password
     def do_POST(self):
@@ -175,26 +53,18 @@ class AppHandler(BaseHTTPRequestHandler):
         passwd = form.getvalue('password')
         target = form.getvalue('target')
 
-        cipher_suite = Fernet(derive_fernet_key())
-        enc_data = cipher_suite.encrypt(user + ':' + passwd)
-
+        enc_data = encode_cookie(user + ':' + passwd)
         if user != None and passwd != None and target != None:
-
             # form is filled, set the cookie and redirect to target
             # so that auth daemon will be able to use information from cookie
             self.send_response(302)
-
-            self.log_message("token value: %s" % enc_data)
             self.send_header('Set-Cookie', 'nginxauth=' + enc_data + '; httponly')
-
             self.send_header('Location', target)
             self.end_headers()
 
             return
 
-        self.log_error('some form fields are not provided')
         self.auth_form(target)
-
 
     def log_message(self, format, *args):
         if len(self.client_address) > 0:

@@ -6,12 +6,13 @@ services:
     volumes:
       - ./nginx-ldap-auth.conf:/etc/nginx/nginx.conf
       - ./:/etc/nginx/logs
+    stop_signal: SIGQUIT
 
     ports:
       - "8081:8081"
 
-  daemon:
-    image: johncclayton/ldap-daemon:1.3.1
+  auth:
+    build: daemon
     environment:       
       - URL=${URL:?URL is required}
       - BASE=${BASE:?BASE is required}
@@ -22,6 +23,7 @@ services:
       - REALM=${REALM:?REALM is required}
       - CRYPTO_RANDOM_16=${RANDOM16:?RANDOM16 is required}
 
+    stop_signal: SIGKILL
     ports:
       - "8888:8888"
 
@@ -29,6 +31,7 @@ services:
     build: webapp
     environment:       
       - CRYPTO_RANDOM_16=${RANDOM16:?RANDOM16 is required}
+    stop_signal: SIGKILL
     ports:
       - "9000:9000"
 

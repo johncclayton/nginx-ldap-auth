@@ -8,9 +8,9 @@ stages:
       pushRemote: true
       registry: index.docker.io
   - publishImageConfig:
-      dockerfilePath: sample/Dockerfile
-      buildContext: sample
-      tag: johncclayton/ldap-auth-sample:1.3.0
+      dockerfilePath: webapp/Dockerfile
+      buildContext: webapp
+      tag: johncclayton/ldap-auth-webapp:1.3.0
       pushRemote: true
       registry: index.docker.io
 timeout: 600
